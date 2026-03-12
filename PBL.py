@@ -24,8 +24,8 @@ st.markdown("""
 
 try:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-except:
-    st.warning("⚠️ Gemini API Key not found in Streamlit Secrets. AI generation will fail.")
+except Exception:
+    st.warning("⚠️ Gemini API Key not found in Streamlit Secrets. AI generation will be disabled.")
 
 # ==========================================
 # 2. CORE ENGINE FUNCTIONS 
@@ -43,7 +43,8 @@ def parse_workout_file(raw_csv):
                 val = str(df.loc[df['Metric'] == metric_name, 'Value'].values[0])
                 val_clean = ''.join(c for c in val if c.isdigit() or c == '.')
                 return float(val_clean) if val_clean else 0.0
-            except: return 0.0
+            except Exception: 
+                return 0.0
 
         metrics = {
             'distance_km': get_val('Distance'),
@@ -57,30 +58,24 @@ def parse_workout_file(raw_csv):
         return None, None
 
 def create_pdf(text_content, title="Document"):
-    """Upgraded PDF Generator for cleaner, professional formatting."""
     pdf = FPDF()
     pdf.add_page()
-    
-    # Add a professional title
     pdf.set_font("Arial", 'B', 14)
     pdf.cell(0, 10, title, ln=True, align='C')
     pdf.ln(5)
-    
-    # Standard text formatting
     pdf.set_font("Arial", size=11)
     
-    # Scrub AI Markdown and LaTeX for a clean text output
+    # Aggressively clean text for PDF compatibility
     clean_text = text_content.replace('**', '').replace('##', '')
     clean_text = clean_text.replace('$', '').replace('\\frac', '/').replace('\\times', 'x').replace('\\', '')
     
     for line in clean_text.split('\n'):
-        # Fix bullet points
         if line.strip().startswith('* '):
             line = line.replace('* ', '- ', 1)
-            
+        # Encode to latin-1, replacing unsupported characters
         clean_line = line.encode('latin-1', 'replace').decode('latin-1')
-        pdf.multi_cell(0, 6, txt=clean_line) # Tighter line spacing for readability
-        pdf.ln(2) # Small paragraph breaks
+        pdf.multi_cell(0, 6, txt=clean_line)
+        pdf.ln(2)
         
     return pdf.output(dest="S").encode('latin-1')
 
@@ -93,14 +88,13 @@ def generate_ai_curriculum(metrics, sim_mass, pred_temp, is_cohort, runner_count
     engineering_challenge = ""
     if pred_temp >= 30:
         engineering_challenge = f"""
-        3. Ethno-STEM Design Challenge: The ambient temperature is a dangerous {pred_temp}°C. Using local materials or biomimicry inspired by desert ecosystems, engineer and draw a passive cooling garment or hydration delivery system to keep the runner's core temperature stable. Justify your design using thermodynamic principles.
+      Task 3 (Ethno-STEM Design - 20 mins): The ambient temperature is a dangerous {pred_temp}°C. Using local materials or biomimicry inspired by desert ecosystems, engineer and draw a passive cooling garment or hydration delivery system to keep the runner's core temperature stable. Justify your design using thermodynamic principles.
         """
         
-    data_context = f"a single runner's data"
+    data_context = "a single runner's data"
     if is_cohort:
          data_context = f"the statistically averaged data of a cohort of {runner_count} runners"
 
-    # UPGRADED PROMPT: Forcing plain-english math to prevent messy code output
     prompt = f"""
     Act as an expert STEM educator. Read the following athletic data representing {data_context}:
     - Distance: {dist:.2f} km
@@ -111,25 +105,42 @@ def generate_ai_curriculum(metrics, sim_mass, pred_temp, is_cohort, runner_count
     - Simulated Mass: {sim_mass} kg
     - Predicted Race Temperature: {pred_temp}°C
 
-    CRITICAL INSTRUCTION: DO NOT use LaTeX formatting. DO NOT use mathematical symbols like \\frac or \\times. Write all math formulas using standard keyboard characters (e.g., Output / Input) or plain English. Never use the $ symbol for math blocks. Keep formatting clean and simple.
+    CRITICAL INSTRUCTION: You must be extremely detailed. Do not give short one-sentence answers. Expand on the pedagogical theory in Step 2, and provide a fully fleshed-out narrative in Step 4. DO NOT use LaTeX formatting or math symbols like \\frac. Use plain text math only (e.g., Output / Input).
 
     You must output a dual-document response. 
     First, the Student Lesson Plan. 
-    Then, type the exact phrase "===TEACHER KEY===" on its own line. 
-    Finally, output the Teacher Answer Key & Rubric.
+    Then, type "===TEACHER KEY===" on its own line. 
+    Finally, output the Teacher Answer Key.
 
     STUDENT LESSON FORMAT:
     COMPUTATIONAL THINKING LESSON PLAN
-    STEP 1: PICK A CONCEPT & PRACTICE (Focus on Mathematical Modeling & Endurance)
-    STEP 2: DECOMPOSE (Break down the variables provided)
-    STEP 3: CREATE A CONTEXT (Everyday life example)
-    STEP 4: EXERCISE
-    Write 2 specific math/physics questions using the exact numbers provided (Calculate energy efficiency and thermodynamic load).
-    {engineering_challenge}
+
+    STEP 1: PICK A CONCEPT & PRACTICE
+    - Concept: [Select a specific CT concept like Pattern Recognition or Algorithmic Design]
+    - Practice: [Select a practice like Tinkering or Debugging]
+
+    STEP 2: DECOMPOSE (How to teach the concept on a theoretical level)
+    - Identify Biological/Physical Stages: [Write a detailed 2-sentence breakdown of the physical variables at play]
+    - Understand Logic/Algorithms: [Write a detailed 2-sentence explanation of how environmental inputs act as conditions for the mathematical model]
+    - Recognize Universal Patterns: [Write a detailed 2-sentence explanation connecting this specific run to broader physics principles]
+
+    STEP 3: CREATE A CONTEXT
+    - School Subject: Science/STEM
+    - Everyday Life Example: [Write a highly detailed, relatable paragraph about how students interact with this physics in their real life]
+    - Essential Question: [Write a deep, multi-layered question to guide the lesson]
+
+    STEP 4: COME UP WITH AN EXERCISE
+    Exercise Title: [Creative Title]
+    - Introduction (5 mins): [Provide a detailed script/activity for the teacher to introduce the hidden metrics]
+    - Simulation (15 mins): Students input the dataset ({dist:.2f} km at {spd_ms:.2f} m/s) into the PBL Engine. [Explain exactly what variables they should observe changing on the dashboard].
+    - Modification (20 mins): Students must tinker with the Interactive Predictor and Simulator logic. 
+      Task 1: [Write a highly specific math/physics question using exactly {dist:.2f} km and {metrics['calories']} kcal. Plain text math only].
+      Task 2: [Write a highly specific thermodynamic question using exactly {spd_ms:.2f} m/s and {pred_temp}°C. Plain text math only].{engineering_challenge}
+    - Reflection (5 mins): [Provide detailed discussion prompts about the logical pattern: Input + Condition = Output]
     
     TEACHER KEY FORMAT:
-    Provide the step-by-step mathematical solutions to the questions from Step 4. 
-    Provide a 4-point grading rubric assessing Data Analysis, Algorithmic Thinking, and Engineering Design.
+    Provide the step-by-step mathematical solutions to the tasks from Step 4. 
+    Provide a detailed 4-point grading rubric assessing Data Analysis, Algorithmic Thinking, and Modeling.
     """
     
     try:
@@ -154,18 +165,14 @@ void setup() {{
 }}
 
 void loop() {{
-  // Calculate thermodynamic strain 
-  // If temp is high, the "fan" (motor) needs to spin faster to cool the system
   float heatMultiplier = 1.0;
   if (ambientTemp > 25) {{
       heatMultiplier = 1.0 + ((ambientTemp - 25) * 0.05); 
   }}
   
-  // Map human speed (0 to 6 m/s) to Arduino PWM (0 to 255)
-  // Adjusted by the thermodynamic heat multiplier
+  // Map speed to 8-bit PWM (0-255)
   int pwmValue = map(runnerSpeed_ms * 100 * heatMultiplier, 0, 600, 0, 255);
   
-  // Safety constraint for the 8-bit limit
   if (pwmValue > 255) pwmValue = 255; 
   if (pwmValue < 0) pwmValue = 0;
 
@@ -178,46 +185,79 @@ void loop() {{
   Serial.print("C | Output PWM: ");
   Serial.println(pwmValue);
   
-  delay(1000); // Update every 1 second
+  delay(1000);
 }}
 """
 
 # ==========================================
-# 3. SIDEBAR & FILE UPLOAD
+# 3. SIDEBAR: DATA SOURCE TOGGLE
 # ==========================================
 with st.sidebar:
     try:
         st.image("logo-black-web.png", use_container_width=True)
-    except:
+    except Exception:
         st.title("STEM & Fitness")
     st.divider()
-    st.header("Upload Center")
-    uploaded_files = st.file_uploader("Drop Workout Summary CSV(s)", type=["csv", "txt"], accept_multiple_files=True)
+    
+    data_source = st.radio("Select Data Source:", ["📁 Upload File(s)", "✍️ Manual Data Entry"])
+    st.divider()
+    
+    uploaded_files = None
+    man_dist = man_time = man_cal = man_cadence = man_stride = 0
+    
+    if data_source == "📁 Upload File(s)":
+        st.header("Upload Center")
+        uploaded_files = st.file_uploader("Drop Workout Summary CSV(s)", type=["csv", "txt"], accept_multiple_files=True)
+    else:
+        st.header("Manual Entry")
+        st.caption("Don't have a smartwatch? Enter your run data manually below.")
+        man_dist = st.number_input("Distance (km)", min_value=0.1, value=5.0, step=0.1)
+        man_time = st.number_input("Total Time (minutes)", min_value=1.0, value=30.0, step=1.0)
+        man_cal = st.number_input("Est. Calories Burned", min_value=10, value=350, step=10)
+        man_cadence = st.number_input("Est. Cadence (steps/min)", min_value=50, value=150, step=5)
+        man_stride = st.number_input("Est. Stride Length (cm)", min_value=30, value=90, step=5)
+        
     st.divider()
     st.markdown("Developed by **Mr. Dickens** | *stemandfitness.com*")
 
 # ==========================================
-# 4. MAIN DASHBOARD UI
+# 4. MAIN DASHBOARD UI & LOGIC
 # ==========================================
-if not uploaded_files:
-    st.title("Welcome to the Biometric Engine")
-    st.markdown("Upload one or multiple CSV files in the sidebar to power up the engine. Highlight multiple files to activate **Cohort Mode**.")
-    st.image("https://images.unsplash.com/photo-1530143311094-34d807799e8f?auto=format&fit=crop&q=80&w=1200", use_container_width=True)
-else:
-    parsed_metrics = []
-    raw_dfs = []
-    
+has_data = False
+parsed_metrics = []
+raw_dfs = []
+
+if data_source == "📁 Upload File(s)" and uploaded_files:
     for file in uploaded_files:
         raw_data = file.getvalue().decode("utf-8")
         df, m = parse_workout_file(raw_data)
         if m is not None:
             parsed_metrics.append(m)
             raw_dfs.append(df)
+    if parsed_metrics:
+        has_data = True
+elif data_source == "✍️ Manual Data Entry":
+    # Failsafe: Prevent division by zero if user clears the box
+    safe_time = man_time if man_time > 0 else 1.0 
+    man_speed_ms = (man_dist * 1000) / (safe_time * 60)
+    man_speed_kmh = man_speed_ms * 3.6
+    
+    manual_m = {
+        'distance_km': man_dist,
+        'calories': man_cal,
+        'avg_speed_kmh': man_speed_kmh,
+        'cadence': man_cadence,
+        'stride_cm': man_stride
+    }
+    parsed_metrics.append(manual_m)
+    raw_dfs.append(pd.DataFrame([manual_m]))
+    has_data = True
 
-    if not parsed_metrics:
-        st.error("Error: None of the uploaded files match the expected format.")
-        st.stop()
-
+if not has_data:
+    st.title("Welcome to the Biometric Engine")
+    st.markdown("Upload workout files or manually enter data in the sidebar to power up the engine.")
+    st.image("https://images.unsplash.com/photo-1530143311094-34d807799e8f?auto=format&fit=crop&q=80&w=1200", use_container_width=True)
+else:
     runner_count = len(parsed_metrics)
     is_cohort = runner_count > 1
     
@@ -236,6 +276,8 @@ else:
     st.title("🏃‍♂️ Biometric Performance & Prediction Engine")
     if is_cohort:
         st.success(f"📊 Cohort Mode Active: Averaging data from {runner_count} athletes.")
+    elif data_source == "✍️ Manual Data Entry":
+        st.info("✍️ Manual Entry Mode Active: Computing physics from user input.")
     
     col1, col2, col3 = st.columns(3)
     col1.metric("Mean Distance", f"{avg_m['distance_km']:.2f} km")
@@ -282,13 +324,13 @@ else:
                 h, mins = int(final_sec // 3600), int((final_sec % 3600) // 60)
                 st.info(f"### Predicted Time: **{h} hrs {mins} mins**")
 
-    # -- TAB 3: AI LESSON PLAN & RUBRIC --
+    # -- TAB 3: CURRICULUM SUITE --
     with tab3:
         st.header("AI-Powered Educator Suite")
         st.markdown("Generates a student handout and a private teacher grading rubric based on the current simulator states.")
         
         if st.button("✨ Generate Full Curriculum", type="primary"):
-            with st.spinner("Analyzing data and generating grading rubrics..."):
+            with st.spinner("Decomposing theory and generating curriculum..."):
                 full_text = generate_ai_curriculum(avg_m, sim_mass, pred_temp, is_cohort, runner_count)
                 
                 safe_text = full_text.replace("**===TEACHER KEY===**", "===TEACHER KEY===")
@@ -302,18 +344,16 @@ else:
                     st.session_state['teacher_rubric'] = "Error: AI did not separate the rubric correctly. Please try generating again."
         
         if 'student_lesson' in st.session_state:
-            st.success("Curriculum Generated!")
+            st.success("Curriculum Generated Successfully!")
             
             cur_tab1, cur_tab2 = st.tabs(["📄 Student Lesson Plan", "🔒 Teacher Answer Key & Rubric"])
             
             with cur_tab1:
-                # UPGRADED: Using st.markdown so the text renders beautifully on the website
                 st.markdown(st.session_state['student_lesson'])
                 st.download_button("Download Student Handout (PDF)", data=create_pdf(st.session_state['student_lesson'], title="STEM Lesson Plan"), file_name="Student_Lesson.pdf", mime="application/pdf")
                 
             with cur_tab2:
-                st.info("The following solutions and rubrics are based strictly on the uploaded mathematical model.")
-                # UPGRADED: Using st.markdown here as well
+                st.info("The following solutions and rubrics are based strictly on the mathematical model.")
                 st.markdown(st.session_state['teacher_rubric'])
                 st.download_button("Download Teacher Key (PDF)", data=create_pdf(st.session_state['teacher_rubric'], title="Teacher Answer Key & Rubric"), file_name="Teacher_Rubric.pdf", mime="application/pdf")
 
@@ -325,7 +365,7 @@ else:
         st.code(arduino_code, language="cpp")
         st.download_button("Download .ino File", data=arduino_code, file_name="PBL_Biometric.ino", mime="text/plain")
 
-    # -- TAB 5: RAW DATA & COHORT --
+    # -- TAB 5: RAW DATA --
     with tab5:
         if is_cohort:
             st.subheader(f"Cohort Data Preview ({runner_count} Runners)")
@@ -334,5 +374,7 @@ else:
                 comp_data.append({"Runner": f"Runner {i+1}", "Distance (km)": m['distance_km'], "Speed (km/h)": m['avg_speed_kmh'], "Calories": m['calories']})
             st.dataframe(pd.DataFrame(comp_data), use_container_width=True)
         else:
-            st.subheader("Raw Workout Metrics")
+            st.subheader("Raw Data Model")
             st.dataframe(raw_dfs[0], use_container_width=True)
+            if data_source == "✍️ Manual Data Entry":
+                st.caption("This data frame was generated dynamically from your manual inputs.")
