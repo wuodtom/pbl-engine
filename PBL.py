@@ -72,8 +72,8 @@ def generate_ai_lesson(metrics, sim_mass, pred_temp):
     dist = metrics['distance_km']
     spd_ms = metrics['avg_speed_kmh'] / 3.6
     
-    # Initialize the fast Gemini Flash model
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    # Switched to 'gemini-pro' for universal compatibility
+    model = genai.GenerativeModel('gemini-pro')
     
     # The engineered prompt forcing the Code.org CT format
     prompt = f"""
@@ -199,7 +199,7 @@ else:
                 st.text(st.session_state['current_lesson'])
                 st.download_button(
                     label="📄 Download AI Lesson Plan (PDF)", 
-                    data=create_pdf(st.session_state['current_lesson']), 
+                    data=create_lesson_pdf(st.session_state['current_lesson']),  # Typo fixed here!
                     file_name="AI_CT_Lesson.pdf", 
                     mime="application/pdf"
                 )
