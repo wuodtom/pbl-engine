@@ -37,38 +37,49 @@ with st.sidebar:
 # --- 3. MAIN DASHBOARD LOGIC ---
 if uploaded_file is not None:
     raw_csv_data = uploaded_file.getvalue().decode("utf-8")
-    
-    # Universal Data Sorter (Prevents the EmptyDataError)
     lines = raw_csv_data.strip().split('\n')
-    split_index = None
     
+    # Smart Header Detection: Find the row that actually contains the column names
+    header_index = 0
     for i, line in enumerate(lines):
-        if "Split" in line and "Time" in line:
-            split_index = i
+        line_lower = line.lower()
+        if 'time' in line_lower and ('split' in line_lower or 'km' in line_lower or 'dist' in line_lower):
+            header_index = i
             break
 
-    # Read the data safely, skipping messy rows
-    if split_index is not None:
-        splits_text = '\n'.join(lines[split_index:])
-        df_splits = pd.read_csv(io.StringIO(splits_text), on_bad_lines='skip')
-    else:
-        df_splits = pd.read_csv(io.StringIO(raw_csv_data), on_bad_lines='skip')
+    # Read the data from the header row downward, auto-detecting commas or tabs
+    data_text = '\n'.join(lines[header_index:])
+    df_splits = pd.read_csv(io.StringIO(data_text), sep=None, engine='python', on_bad_lines='skip')
 
-    # Ensure the required columns exist before doing math
+    # Clean up column names (removes hidden spaces like " Time ")
+    df_splits.columns = df_splits.columns.str.strip()
+
+    # Hunt and standardize the Time and KM columns
+    for col in df_splits.columns:
+        if 'time' in col.lower() and col != 'Time':
+            df_splits.rename(columns={col: 'Time'}, inplace=True)
+        elif ('km' in col.lower() or 'dist' in col.lower() or 'split' in col.lower()) and col != 'KM':
+            df_splits.rename(columns={col: 'KM'}, inplace=True)
+
+    # Ensure the required column exists before doing math
     if 'Time' in df_splits.columns:
         
-        # Time processing logic
+        # Time processing logic (converts mm:ss or hh:mm:ss to total seconds)
         def time_to_seconds(time_str):
             try:
-                parts = str(time_str).split(':')
-                return int(parts[0]) * 60 + int(parts[1]) if len(parts) == 2 else 0
+                parts = str(time_str).strip().split(':')
+                if len(parts) == 3:
+                    return int(parts[0]) * 3600 + int(parts[1]) * 60 + float(parts[2])
+                elif len(parts) == 2:
+                    return int(parts[0]) * 60 + float(parts[1])
+                return float(time_str) 
             except: 
                 return 0
 
         # Physics Calculations
         df_splits['Seconds'] = df_splits['Time'].apply(time_to_seconds)
         
-        # Filter out rows where time didn't calculate properly to avoid dividing by zero
+        # Filter out broken rows to avoid dividing by zero
         df_splits = df_splits[df_splits['Seconds'] > 0].copy()
         
         runner_mass_kg = 75 
@@ -95,7 +106,7 @@ if uploaded_file is not None:
         tab1, tab2 = st.tabs(["📊 Data Visualization", "📝 PBL Lesson Generator"])
 
         with tab1:
-            c1, c2 = st.columns([1.5, 1]) # Makes the chart wider than the table
+            c1, c2 = st.columns([1.5, 1])
             with c1:
                 st.subheader("Velocity Trend over Distance")
                 if 'KM' in df_splits.columns:
@@ -104,7 +115,6 @@ if uploaded_file is not None:
                     st.line_chart(df_splits['Velocity_m_s'])
             with c2:
                 st.subheader("Raw Kinematics Table")
-                # Show only the most relevant columns if they exist
                 display_cols = [col for col in ['KM', 'Time', 'Velocity_m_s', 'Kinetic_Energy_J'] if col in df_splits.columns]
                 st.dataframe(df_splits[display_cols], use_container_width=True)
 
@@ -115,8 +125,7 @@ if uploaded_file is not None:
             if st.button("🚀 Generate Physics Lesson", type="primary"):
                 hardest_point = df_splits.loc[df_splits['Velocity_m_s'].idxmin()]
                 
-                # Check if KM exists, otherwise just use the row index
-                km_marker = int(hardest_point['KM']) if 'KM' in hardest_point else "the hardest stretch"
+                km_marker = hardest_point['KM'] if 'KM' in hardest_point else "the hardest stretch"
                 min_vel = hardest_point['Velocity_m_s']
                 min_ke = hardest_point['Kinetic_Energy_J']
                 
@@ -133,7 +142,7 @@ if uploaded_file is not None:
                 2. Using principles of human energy systems, explain how the body attempts to compensate for this mechanical loss, and propose a specific hydration or nutrition intervention.
                 """)
     else:
-        st.error("Error: Could not find a 'Time' column in this file. Please ensure your data includes lap/split times.")
+        st.error("Error: Could not find a 'Time' column. The data cleaner tried to format it but failed. Please ensure your file has clear lap/split times.")
 
 else:
     # Hero Section when no file is uploaded
