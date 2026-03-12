@@ -3,7 +3,7 @@ import pandas as pd
 import io
 
 # --- 1. PAGE CONFIG & BRANDING ---
-st.set_page_config(page_title="Synapse State | PBL Engine", layout="wide", page_icon="🏃‍♂️")
+st.set_page_config(page_title="STEM & Fitness | PBL Engine", layout="wide", page_icon="🏃‍♂️")
 
 # Custom CSS for a clean, professional dashboard look
 st.markdown("""
@@ -17,7 +17,7 @@ st.markdown("""
         border: 1px solid #e9ecef;
     }
     </style>
-    """, unsafe_allow_code=True)
+    """, unsafe_allow_html=True)
 
 # --- 2. THE SIDEBAR (Control Center) ---
 with st.sidebar:
@@ -25,7 +25,7 @@ with st.sidebar:
     try:
         st.image("logo-black-web.png", use_container_width=True)
     except:
-        st.title("Synapse State")
+        st.title("STEM & Fitness")
     
     st.divider()
     st.header("Upload Center")
@@ -139,5 +139,4 @@ else:
     # Hero Section when no file is uploaded
     st.title("Welcome to the Biometric Engine")
     st.markdown("Upload a CSV or TXT file in the sidebar to power up the engine.")
-    # A great placeholder image of runners
     st.image("https://images.unsplash.com/photo-1530143311094-34d807799e8f?auto=format&fit=crop&q=80&w=1200", use_container_width=True)
