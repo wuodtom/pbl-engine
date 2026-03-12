@@ -1,0 +1,79 @@
+Category,Metric,Value,Unit
+Summary,Distance,32.94,km
+Summary,Duration,04:05:20,time
+Summary,Total Calories,2920,kcal
+Summary,Active Calories,2581,kcal
+Summary,Average Pace,7:27,per km
+Summary,Average Speed,8.06,km/h
+Summary,Average Cadence,148,steps/min
+Summary,Average Stride,91,cm
+Summary,Steps,36341,steps
+Summary,Average Heart Rate,163,bpm
+Summary,Max Heart Rate,191,bpm
+Summary,Total Ascent,108.3,m
+Summary,Total Descent,125.4,m
+
+Performance,Aerobic Training Stress,5.0,score
+Performance,Anaerobic Training Stress,4.5,score
+Performance,VO2Max,51,ml/kg/min
+Performance,Recovery Time,79,hours
+
+Running Form,Average Ground Contact Time,266,ms
+Running Form,Minimum Ground Contact Time,236,ms
+Running Form,Vertical Oscillation Avg,9.6,cm
+Running Form,Vertical Oscillation Max,10.7,cm
+Running Form,Balance Left,49.8,percent
+Running Form,Balance Right,50.2,percent
+
+Elevation,Lowest Elevation,17.3,m
+Elevation,Highest Elevation,44.6,m
+
+Cadence,Average Cadence,148,steps/min
+Cadence,Maximum Cadence,174,steps/min
+
+Heart Rate Zones,Extreme,76,minutes
+Heart Rate Zones,Anaerobic,92,minutes
+Heart Rate Zones,Aerobic,52,minutes
+Heart Rate Zones,Fat Burning,23,minutes
+Heart Rate Zones,Warm-up,<1,minutes
+
+Pace Zones,Z5 High Intensity,1,minutes
+Pace Zones,Z4 Anaerobic Pace,11,minutes
+Pace Zones,Z3 Lactate Threshold Pace,20,minutes
+Pace Zones,Z2 Marathon Pace,5,minutes
+Pace Zones,Z1 Jog,93,minutes
+
+Split,KM,Time
+Split,1,4:31
+Split,2,4:38
+Split,3,5:03
+Split,4,5:20
+Split,5,5:21
+Split,6,5:30
+Split,7,5:42
+Split,8,6:09
+Split,9,6:13
+Split,10,6:29
+Split,11,6:43
+Split,12,6:46
+Split,13,7:04
+Split,14,6:53
+Split,15,6:52
+Split,16,7:52
+Split,17,7:25
+Split,18,7:10
+Split,19,7:14
+Split,20,8:35
+Split,21,8:45
+Split,22,7:15
+Split,23,7:35
+Split,24,6:32
+Split,25,10:33
+Split,26,13:04
+Split,27,11:13
+Split,28,8:03
+Split,29,8:24
+Split,30,8:54
+Split,31,8:51
+Split,32,9:02
+Split,<1km final,9:39
