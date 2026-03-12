@@ -72,10 +72,10 @@ def generate_ai_lesson(metrics, sim_mass, pred_temp):
     dist = metrics['distance_km']
     spd_ms = metrics['avg_speed_kmh'] / 3.6
     
-    # Switched to 'gemini-pro' for universal compatibility
-    model = genai.GenerativeModel('gemini-pro')
+    # UPGRADED: Using the current active model to prevent 404 errors
+    model = genai.GenerativeModel('gemini-2.5-flash')
     
-    # The engineered prompt forcing the Code.org CT format
+    # The engineered prompt forcing the CT format
     prompt = f"""
     Act as an expert STEM educator. Create a Computational Thinking lesson plan based on this specific athletic data:
     - Distance: {dist:.2f} km
@@ -93,7 +93,7 @@ def generate_ai_lesson(metrics, sim_mass, pred_temp):
     STEP 3: CREATE A CONTEXT
     STEP 4: COME UP WITH AN EXERCISE
     
-    Requirements for Step 4: Include a realistic scenario (e.g., running in Doha) and create 2 specific mathematical or scientific questions that force the students to use the exact data numbers provided above. 
+    Requirements for Step 4: Include a realistic scenario and create 2 specific mathematical or scientific questions that force the students to use the exact data numbers provided above. 
     Do not use emojis. Keep formatting simple.
     """
     
@@ -186,20 +186,15 @@ else:
             
             if st.button("✨ Generate AI Lesson Plan", type="primary"):
                 with st.spinner("Analyzing biometrics and generating curriculum..."):
-                    
-                    # Call the AI function
                     ai_lesson_text = generate_ai_lesson(m, sim_mass, pred_temp)
-                    
-                    # Store it in session state so it doesn't disappear if the user clicks a slider
                     st.session_state['current_lesson'] = ai_lesson_text
             
-            # Display the lesson if it exists
             if 'current_lesson' in st.session_state:
                 st.success("Lesson Generated!")
                 st.text(st.session_state['current_lesson'])
                 st.download_button(
                     label="📄 Download AI Lesson Plan (PDF)", 
-                    data=create_lesson_pdf(st.session_state['current_lesson']),  # Typo fixed here!
+                    data=create_lesson_pdf(st.session_state['current_lesson']), 
                     file_name="AI_CT_Lesson.pdf", 
                     mime="application/pdf"
                 )
