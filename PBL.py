@@ -61,7 +61,8 @@ def create_lesson_pdf(text_content):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", size=11)
-    # Basic sanitization to prevent FPDF from crashing on AI-generated special characters
+    
+    # Clean formatting for a pristine PDF
     clean_text = text_content.replace('**', '').replace('*', '-') 
     for line in clean_text.split('\n'):
         clean_line = line.encode('latin-1', 'replace').decode('latin-1')
@@ -72,12 +73,11 @@ def generate_ai_lesson(metrics, sim_mass, pred_temp):
     dist = metrics['distance_km']
     spd_ms = metrics['avg_speed_kmh'] / 3.6
     
-    # UPGRADED: Using the current active model to prevent 404 errors
     model = genai.GenerativeModel('gemini-2.5-flash')
     
-    # The engineered prompt forcing the CT format
+    # Template-Forced Prompting
     prompt = f"""
-    Act as an expert STEM educator. Create a Computational Thinking lesson plan based on this specific athletic data:
+    Act as an expert STEM educator. Read the following athletic data:
     - Distance: {dist:.2f} km
     - Calories Burned: {metrics['calories']} kcal
     - Average Speed: {spd_ms:.2f} m/s
@@ -86,15 +86,41 @@ def generate_ai_lesson(metrics, sim_mass, pred_temp):
     - Simulated Runner Mass: {sim_mass} kg
     - Predicted Race Temperature: {pred_temp}°C
 
-    Structure the response EXACTLY in this 4-step format, suitable for a middle/high school physics or biology class. 
-    
+    You must output a lesson plan EXACTLY matching the text structure below. DO NOT change the headers, introduction, or reflection. ONLY generate the two specific math/physics questions under "Modification" using the data provided. Do not use bolding or markdown.
+
+    Lesson Plan: Computational Modeling of Human Endurance
+    Subject: Science/STEM
+    Tool: PBL Engine (stemandfitness.com)
+    Duration: 45 minutes
+
+    COMPUTATIONAL THINKING LESSON PLAN
+
     STEP 1: PICK A CONCEPT & PRACTICE
+    - Concept: Mathematical Modeling (Endurance & Thermodynamics)
+    - Practice: Tinkering & Data Analysis
+
     STEP 2: DECOMPOSE
+    - Identify Biometrics: Break down the specific variables of human performance from a real dataset.
+    - Understand the Algorithm: Explain how predictive formulas use logic to scale baseline performance to new distances.
+    - Recognize Universal Patterns: Teach students that environmental inputs act as biological modifiers.
+
     STEP 3: CREATE A CONTEXT
+    - School Subject: Physics & Biology (STEM)
+    - Everyday Life Example: How smartwatches and fitness apps predict finish times based on smaller training runs.
+    - Essential Question: How can we use mathematical algorithms to predict human physical performance, and how do local environmental factors limit those predictions?
+
     STEP 4: COME UP WITH AN EXERCISE
-    
-    Requirements for Step 4: Include a realistic scenario and create 2 specific mathematical or scientific questions that force the students to use the exact data numbers provided above. 
-    Do not use emojis. Keep formatting simple.
+    Exercise Title: The Biometric Predictor
+
+    Introduction (5 mins): Discuss how fitness trackers predict race times and introduce the concept of thermodynamic load on the human body.
+
+    Simulation (15 mins): Students upload the dataset into the PBL Engine. They observe the baseline metrics: an average speed of {spd_ms:.2f} m/s and a cadence of {metrics['cadence']} steps/min.
+
+    Modification (20 mins): Students must "tinker" with the Interactive Predictor and Simulator to solve the following tasks based on this specific run:
+    1. [Write a highly specific, mathematical question here utilizing the exact {dist:.2f} km and {metrics['calories']} kcal values. Ask them to calculate energy depletion or efficiency.]
+    2. [Write a highly specific thermodynamic/physics question here utilizing the exact {spd_ms:.2f} m/s and {pred_temp}°C values. Ask them to model the impact of heat.]
+
+    Reflection (5 mins): Discuss the limitations of the computational model. Does the algorithm account for dehydration, wind resistance, or the runner's changing mass as they sweat? Why or why not?
     """
     
     try:
