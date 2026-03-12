@@ -22,16 +22,17 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
+# Securely configure the Gemini API
 try:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 except:
     st.warning("⚠️ Gemini API Key not found in Streamlit Secrets. AI generation will fail.")
 
 # ==========================================
-# 2. HELPER FUNCTIONS 
+# 2. CORE ENGINE FUNCTIONS 
 # ==========================================
 def parse_workout_file(raw_csv):
-    """Parses a single file and extracts core metrics."""
+    """Parses a single file and extracts core metrics safely."""
     try:
         df = pd.read_csv(io.StringIO(raw_csv), sep=',', on_bad_lines='skip')
         df.columns = df.columns.str.strip()
@@ -58,6 +59,7 @@ def parse_workout_file(raw_csv):
         return None, None
 
 def create_pdf(text_content):
+    """Sanitizes AI text and generates a clean PDF."""
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", size=11)
@@ -68,19 +70,20 @@ def create_pdf(text_content):
     return pdf.output(dest="S").encode('latin-1')
 
 def generate_ai_curriculum(metrics, sim_mass, pred_temp, is_cohort, runner_count):
+    """Calls Gemini 2.5 Flash to generate the dual-document curriculum."""
     dist = metrics['distance_km']
     spd_ms = metrics['avg_speed_kmh'] / 3.6
     
     model = genai.GenerativeModel('gemini-2.5-flash')
     
-    # Ethno-STEM / Engineering Trigger
+    # Ethno-STEM Trigger Logic
     engineering_challenge = ""
     if pred_temp >= 30:
         engineering_challenge = f"""
         3. Ethno-STEM Design Challenge: The ambient temperature is a dangerous {pred_temp}°C. Using local materials or biomimicry inspired by desert ecosystems, engineer and draw a passive cooling garment or hydration delivery system to keep the runner's core temperature stable. Justify your design using thermodynamic principles.
         """
         
-    # Cohort Context Trigger
+    # Cohort Context Trigger Logic
     data_context = f"a single runner's data"
     if is_cohort:
          data_context = f"the statistically averaged data of a cohort of {runner_count} runners"
@@ -112,7 +115,7 @@ def generate_ai_curriculum(metrics, sim_mass, pred_temp, is_cohort, runner_count
     TEACHER KEY FORMAT:
     Provide the step-by-step mathematical solutions to the questions from Step 4. 
     Provide a 4-point grading rubric assessing Data Analysis, Algorithmic Thinking, and Engineering Design.
-    Do not use bolding or markdown emojis.
+    Do not use emojis.
     """
     
     try:
@@ -186,7 +189,7 @@ with st.sidebar:
 # ==========================================
 if not uploaded_files:
     st.title("Welcome to the Biometric Engine")
-    st.markdown("Upload one or multiple CSV files in the sidebar to power up the engine.")
+    st.markdown("Upload one or multiple CSV files in the sidebar to power up the engine. Highlight multiple files to activate **Cohort Mode**.")
     st.image("https://images.unsplash.com/photo-1530143311094-34d807799e8f?auto=format&fit=crop&q=80&w=1200", use_container_width=True)
 else:
     # --- DATA PARSING & COHORT LOGIC ---
@@ -232,7 +235,7 @@ else:
     st.divider()
 
     # --- TABS ---
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["🎛️ Simulator", "⏱️ Predictor", "🤖 Curriculum & Rubric", "🔌 Arduino Bridge", "📊 Cohort Data"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["🎛️ Simulator", "⏱️ Predictor", "🤖 Curriculum Suite", "🔌 Arduino Bridge", "📊 Raw Data"])
 
     # -- TAB 1: SIMULATOR --
     with tab1:
@@ -251,7 +254,7 @@ else:
             sc2.metric("Est. Total Work", f"{adj_joules:,.0f} J", f"{sim_temp}°C Heat Factor applied")
             
             if sim_temp >= 30:
-                st.warning("🔥 Extreme Heat Detected: The Ethno-STEM Design Challenge has been unlocked in the Curriculum generator.")
+                st.warning("🔥 Extreme Heat Detected: The Ethno-STEM Design Challenge will automatically unlock in the Curriculum generator.")
 
     # -- TAB 2: PREDICTOR --
     with tab2:
@@ -280,19 +283,20 @@ else:
             with st.spinner("Analyzing data and generating grading rubrics..."):
                 full_text = generate_ai_curriculum(avg_m, sim_mass, pred_temp, is_cohort, runner_count)
                 
-                # Split the document into Student and Teacher sections
-                if "===TEACHER KEY===" in full_text:
-                    parts = full_text.split("===TEACHER KEY===")
+                # Failsafe Split Logic: Normalizes the split token just in case Gemini formats it weirdly
+                safe_text = full_text.replace("**===TEACHER KEY===**", "===TEACHER KEY===")
+                
+                if "===TEACHER KEY===" in safe_text:
+                    parts = safe_text.split("===TEACHER KEY===")
                     st.session_state['student_lesson'] = parts[0].strip()
                     st.session_state['teacher_rubric'] = parts[1].strip()
                 else:
-                    st.session_state['student_lesson'] = full_text
-                    st.session_state['teacher_rubric'] = "Error: AI did not format the rubric correctly."
+                    st.session_state['student_lesson'] = safe_text
+                    st.session_state['teacher_rubric'] = "Error: AI did not separate the rubric correctly. Please try generating again."
         
         if 'student_lesson' in st.session_state:
             st.success("Curriculum Generated!")
             
-            # Sub-tabs for clean teacher viewing
             cur_tab1, cur_tab2 = st.tabs(["📄 Student Lesson Plan", "🔒 Teacher Answer Key & Rubric"])
             
             with cur_tab1:
@@ -317,7 +321,6 @@ else:
     with tab5:
         if is_cohort:
             st.subheader(f"Cohort Data Preview ({runner_count} Runners)")
-            # Create a simple comparison dataframe
             comp_data = []
             for i, m in enumerate(parsed_metrics):
                 comp_data.append({"Runner": f"Runner {i+1}", "Distance (km)": m['distance_km'], "Speed (km/h)": m['avg_speed_kmh'], "Calories": m['calories']})
