@@ -22,7 +22,6 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# Securely configure the Gemini API
 try:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 except:
@@ -32,7 +31,6 @@ except:
 # 2. CORE ENGINE FUNCTIONS 
 # ==========================================
 def parse_workout_file(raw_csv):
-    """Parses a single file and extracts core metrics safely."""
     try:
         df = pd.read_csv(io.StringIO(raw_csv), sep=',', on_bad_lines='skip')
         df.columns = df.columns.str.strip()
@@ -58,36 +56,51 @@ def parse_workout_file(raw_csv):
     except Exception:
         return None, None
 
-def create_pdf(text_content):
-    """Sanitizes AI text and generates a clean PDF."""
+def create_pdf(text_content, title="Document"):
+    """Upgraded PDF Generator for cleaner, professional formatting."""
     pdf = FPDF()
     pdf.add_page()
+    
+    # Add a professional title
+    pdf.set_font("Arial", 'B', 14)
+    pdf.cell(0, 10, title, ln=True, align='C')
+    pdf.ln(5)
+    
+    # Standard text formatting
     pdf.set_font("Arial", size=11)
-    clean_text = text_content.replace('**', '').replace('*', '-') 
+    
+    # Scrub AI Markdown and LaTeX for a clean text output
+    clean_text = text_content.replace('**', '').replace('##', '')
+    clean_text = clean_text.replace('$', '').replace('\\frac', '/').replace('\\times', 'x').replace('\\', '')
+    
     for line in clean_text.split('\n'):
+        # Fix bullet points
+        if line.strip().startswith('* '):
+            line = line.replace('* ', '- ', 1)
+            
         clean_line = line.encode('latin-1', 'replace').decode('latin-1')
-        pdf.multi_cell(0, 8, txt=clean_line)
+        pdf.multi_cell(0, 6, txt=clean_line) # Tighter line spacing for readability
+        pdf.ln(2) # Small paragraph breaks
+        
     return pdf.output(dest="S").encode('latin-1')
 
 def generate_ai_curriculum(metrics, sim_mass, pred_temp, is_cohort, runner_count):
-    """Calls Gemini 2.5 Flash to generate the dual-document curriculum."""
     dist = metrics['distance_km']
     spd_ms = metrics['avg_speed_kmh'] / 3.6
     
     model = genai.GenerativeModel('gemini-2.5-flash')
     
-    # Ethno-STEM Trigger Logic
     engineering_challenge = ""
     if pred_temp >= 30:
         engineering_challenge = f"""
         3. Ethno-STEM Design Challenge: The ambient temperature is a dangerous {pred_temp}°C. Using local materials or biomimicry inspired by desert ecosystems, engineer and draw a passive cooling garment or hydration delivery system to keep the runner's core temperature stable. Justify your design using thermodynamic principles.
         """
         
-    # Cohort Context Trigger Logic
     data_context = f"a single runner's data"
     if is_cohort:
          data_context = f"the statistically averaged data of a cohort of {runner_count} runners"
 
+    # UPGRADED PROMPT: Forcing plain-english math to prevent messy code output
     prompt = f"""
     Act as an expert STEM educator. Read the following athletic data representing {data_context}:
     - Distance: {dist:.2f} km
@@ -97,6 +110,8 @@ def generate_ai_curriculum(metrics, sim_mass, pred_temp, is_cohort, runner_count
     - Stride Length: {metrics['stride_cm']} cm
     - Simulated Mass: {sim_mass} kg
     - Predicted Race Temperature: {pred_temp}°C
+
+    CRITICAL INSTRUCTION: DO NOT use LaTeX formatting. DO NOT use mathematical symbols like \\frac or \\times. Write all math formulas using standard keyboard characters (e.g., Output / Input) or plain English. Never use the $ symbol for math blocks. Keep formatting clean and simple.
 
     You must output a dual-document response. 
     First, the Student Lesson Plan. 
@@ -115,7 +130,6 @@ def generate_ai_curriculum(metrics, sim_mass, pred_temp, is_cohort, runner_count
     TEACHER KEY FORMAT:
     Provide the step-by-step mathematical solutions to the questions from Step 4. 
     Provide a 4-point grading rubric assessing Data Analysis, Algorithmic Thinking, and Engineering Design.
-    Do not use emojis.
     """
     
     try:
@@ -125,7 +139,6 @@ def generate_ai_curriculum(metrics, sim_mass, pred_temp, is_cohort, runner_count
         return f"Error generating AI lesson: {e}"
 
 def generate_arduino_bridge(spd_ms, cadence, sim_temp):
-    """Generates C++ code for Arduino physical computing."""
     return f"""// STEM & Fitness: PBL Biometric Physical Computing Bridge
 // Connect a standard DC Motor or LED to Pin 9 (PWM)
 // This translates the runner's speed into physical output.
@@ -170,7 +183,7 @@ void loop() {{
 """
 
 # ==========================================
-# 3. SIDEBAR & FILE UPLOAD (Cohort Enabled)
+# 3. SIDEBAR & FILE UPLOAD
 # ==========================================
 with st.sidebar:
     try:
@@ -179,7 +192,6 @@ with st.sidebar:
         st.title("STEM & Fitness")
     st.divider()
     st.header("Upload Center")
-    # Upgrade: accept_multiple_files enables Cohort Mode
     uploaded_files = st.file_uploader("Drop Workout Summary CSV(s)", type=["csv", "txt"], accept_multiple_files=True)
     st.divider()
     st.markdown("Developed by **Mr. Dickens** | *stemandfitness.com*")
@@ -192,7 +204,6 @@ if not uploaded_files:
     st.markdown("Upload one or multiple CSV files in the sidebar to power up the engine. Highlight multiple files to activate **Cohort Mode**.")
     st.image("https://images.unsplash.com/photo-1530143311094-34d807799e8f?auto=format&fit=crop&q=80&w=1200", use_container_width=True)
 else:
-    # --- DATA PARSING & COHORT LOGIC ---
     parsed_metrics = []
     raw_dfs = []
     
@@ -207,7 +218,6 @@ else:
         st.error("Error: None of the uploaded files match the expected format.")
         st.stop()
 
-    # Calculate Averages (Handles both Single File and Cohort)
     runner_count = len(parsed_metrics)
     is_cohort = runner_count > 1
     
@@ -223,7 +233,6 @@ else:
     total_joules = avg_m['calories'] * 4184 
     total_time_sec = (avg_m['distance_km'] * 1000) / spd_ms if spd_ms > 0 else 0
 
-    # --- UI HEADER ---
     st.title("🏃‍♂️ Biometric Performance & Prediction Engine")
     if is_cohort:
         st.success(f"📊 Cohort Mode Active: Averaging data from {runner_count} athletes.")
@@ -234,7 +243,6 @@ else:
     col3.metric("Mean Energy Expended", f"{avg_m['calories']:.0f} kcal")
     st.divider()
 
-    # --- TABS ---
     tab1, tab2, tab3, tab4, tab5 = st.tabs(["🎛️ Simulator", "⏱️ Predictor", "🤖 Curriculum Suite", "🔌 Arduino Bridge", "📊 Raw Data"])
 
     # -- TAB 1: SIMULATOR --
@@ -283,7 +291,6 @@ else:
             with st.spinner("Analyzing data and generating grading rubrics..."):
                 full_text = generate_ai_curriculum(avg_m, sim_mass, pred_temp, is_cohort, runner_count)
                 
-                # Failsafe Split Logic: Normalizes the split token just in case Gemini formats it weirdly
                 safe_text = full_text.replace("**===TEACHER KEY===**", "===TEACHER KEY===")
                 
                 if "===TEACHER KEY===" in safe_text:
@@ -300,19 +307,20 @@ else:
             cur_tab1, cur_tab2 = st.tabs(["📄 Student Lesson Plan", "🔒 Teacher Answer Key & Rubric"])
             
             with cur_tab1:
-                st.text(st.session_state['student_lesson'])
-                st.download_button("Download Student Handout (PDF)", data=create_pdf(st.session_state['student_lesson']), file_name="Student_Lesson.pdf", mime="application/pdf")
+                # UPGRADED: Using st.markdown so the text renders beautifully on the website
+                st.markdown(st.session_state['student_lesson'])
+                st.download_button("Download Student Handout (PDF)", data=create_pdf(st.session_state['student_lesson'], title="STEM Lesson Plan"), file_name="Student_Lesson.pdf", mime="application/pdf")
                 
             with cur_tab2:
                 st.info("The following solutions and rubrics are based strictly on the uploaded mathematical model.")
-                st.text(st.session_state['teacher_rubric'])
-                st.download_button("Download Teacher Key (PDF)", data=create_pdf(st.session_state['teacher_rubric']), file_name="Teacher_Rubric.pdf", mime="application/pdf")
+                # UPGRADED: Using st.markdown here as well
+                st.markdown(st.session_state['teacher_rubric'])
+                st.download_button("Download Teacher Key (PDF)", data=create_pdf(st.session_state['teacher_rubric'], title="Teacher Answer Key & Rubric"), file_name="Teacher_Rubric.pdf", mime="application/pdf")
 
     # -- TAB 4: ARDUINO BRIDGE --
     with tab4:
         st.header("Physical Computing Bridge (Arduino)")
-        st.markdown("Export the current kinematic and thermodynamic data to a microcontroller to build physical models (e.g., motorized heat simulators or metronomes).")
-        
+        st.markdown("Export the current kinematic and thermodynamic data to a microcontroller to build physical models.")
         arduino_code = generate_arduino_bridge(spd_ms, avg_m['cadence'], sim_temp)
         st.code(arduino_code, language="cpp")
         st.download_button("Download .ino File", data=arduino_code, file_name="PBL_Biometric.ino", mime="text/plain")
@@ -325,7 +333,6 @@ else:
             for i, m in enumerate(parsed_metrics):
                 comp_data.append({"Runner": f"Runner {i+1}", "Distance (km)": m['distance_km'], "Speed (km/h)": m['avg_speed_kmh'], "Calories": m['calories']})
             st.dataframe(pd.DataFrame(comp_data), use_container_width=True)
-            st.caption("Detailed breakdown per file uploaded.")
         else:
             st.subheader("Raw Workout Metrics")
             st.dataframe(raw_dfs[0], use_container_width=True)
